@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Upload, Activity, Zap, Cpu, TrendingDown, FileText, Settings, Search, Filter, Download } from 'lucide-react';
 import './App.css'; // Assuming you have a CSS file for styles
+import 'tailwindcss/tailwind.css'; // Import Tailwind CSS styles
+
 const CO2Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedModel, setSelectedModel] = useState(null);
