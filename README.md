@@ -40,7 +40,7 @@ User Upload → Java Backend → S3 Storage → SageMaker Processing → DynamoD
 
  **Launch Dashboard**
    ```bash
-   cd dashboard
+   cd llm-efficiency-dashboard
    npm install
    npm start
    ```
