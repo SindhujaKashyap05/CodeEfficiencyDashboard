@@ -25,7 +25,7 @@ const CO2Dashboard = () => {
   // Model-specific optimizations based on model type
   const getModelOptimizations = (model) => {
     if (!model) return [];
-    
+
     const baseOptimizations = {
       'NLP': [
         { technique: 'Model Pruning', reduction: '25%', impact: 'High', difficulty: 'Medium', description: 'Remove redundant attention heads and layers' },
@@ -169,88 +169,96 @@ const CO2Dashboard = () => {
     </div>
   );
 
-  const renderModels = () => (
-    <div className="space-y-6">
-      {/* Upload Section */}
-      <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Model Management</h3>
-          <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-            <Upload className="w-4 h-4" />
-            Upload Model
-          </button>
-        </div>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Drag and drop your model files or click to browse</p>
-          <p className="text-sm text-gray-400 mt-2">Supports .pkl, .pt, .h5, .onnx formats</p>
-        </div>
-      </div>
+  // Upload state and handlers should be at the component level, not inside renderModels
+  const [uploadData, setUploadData] = useState({
+    modelName: '',
+    version: '',
+    file: null
+  });
 
-      {/* Models List */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Your Models</h3>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search models..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                <Filter className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUploadData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e) => {
+    setUploadData(prev => ({ ...prev, file: e.target.files[0] }));
+  };
+
+  const handleUpload = async () => {
+  const formData = new FormData();
+  formData.append('file', uploadData.file);
+
+  // Build the URL with query params
+  const params = new URLSearchParams({
+    modelName: uploadData.modelName,
+    version: uploadData.version
+  });
+
+  try {
+    const response = await fetch(`http://localhost:8080/api/v1/models/upload?${params.toString()}`, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('Model uploaded successfully');
+      // Optionally, refresh model list or update state
+    } else {
+      alert(`Upload failed: ${data.message || data.error}`);
+    }
+  } catch (err) {
+    alert('Error uploading model: ' + err.message);
+  }
+};
+
+  const renderModels = () => (
+    <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6">
+      <h3 className="text-lg font-semibold mb-4">Upload a New Model</h3>
+      <div className="space-y-4">
+        <input
+          type="text"
+          placeholder="Model Name"
+          name="modelName"
+          value={uploadData.modelName}
+          onChange={handleInputChange}
+          className="w-full p-2 border border-gray-300 rounded-lg"
+        />
+        <input
+          type="text"
+          placeholder="Version"
+          name="version"
+          value={uploadData.version}
+          onChange={handleInputChange}
+          className="w-full p-2 border border-gray-300 rounded-lg"
+        />
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-500">
+          <input
+            type="file"
+            accept=".pkl,.pt,.h5,.onnx,.joblib, .pb, .pth, .pmml,.json,.ipynb"
+            onChange={handleFileChange}
+            className="hidden"
+            id="modelFile"
+          />
+          <label htmlFor="modelFile" className="cursor-pointer">
+            {uploadData.file ? uploadData.file.name : 'Click to select a model file'}
+          </label>
         </div>
-        <div className="divide-y divide-gray-200">
-          {models.map((model) => (
-            <div key={model.id} className="p-6 hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold">
-                    {model.name.charAt(0)}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-lg">{model.name}</h4>
-                    <p className="text-gray-600">{model.type} Model</p>
-                    <p className="text-sm text-gray-400">Last analyzed: {model.lastRun}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-red-600">{model.co2} kg</p>
-                    <p className="text-sm text-gray-600">CO2 Emission</p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    model.status === 'analyzed' ? 'bg-green-100 text-green-800' :
-                    model.status === 'analyzing' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {model.status}
-                  </div>
-                  <button 
-                    onClick={() => setSelectedModel(model)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Analyze
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <button
+          onClick={handleUpload}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+          disabled={!uploadData.file || !uploadData.modelName || !uploadData.version}
+        >
+          Upload Model
+        </button>
       </div>
     </div>
   );
 
   const renderOptimizations = () => {
     if (!selectedOptimizationModel) return <div>Loading...</div>;
-    
+
     const currentOptimizations = getModelOptimizations(selectedOptimizationModel);
 
     return (
@@ -263,11 +271,10 @@ const CO2Dashboard = () => {
               <div
                 key={model.id}
                 onClick={() => setSelectedOptimizationModel(model)}
-                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedOptimizationModel.id === model.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedOptimizationModel.id === model.id
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg flex items-center justify-center text-white font-semibold">
@@ -315,18 +322,16 @@ const CO2Dashboard = () => {
                 </div>
                 <p className="text-sm text-gray-600 mb-3">{opt.description}</p>
                 <div className="flex justify-between text-sm mb-3">
-                  <span className={`px-2 py-1 rounded-full ${
-                    opt.impact === 'High' ? 'bg-red-100 text-red-800' :
+                  <span className={`px-2 py-1 rounded-full ${opt.impact === 'High' ? 'bg-red-100 text-red-800' :
                     opt.impact === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
+                      'bg-green-100 text-green-800'
+                    }`}>
                     {opt.impact} Impact
                   </span>
-                  <span className={`px-2 py-1 rounded-full ${
-                    opt.difficulty === 'High' ? 'bg-red-100 text-red-800' :
+                  <span className={`px-2 py-1 rounded-full ${opt.difficulty === 'High' ? 'bg-red-100 text-red-800' :
                     opt.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
+                      'bg-green-100 text-green-800'
+                    }`}>
                     {opt.difficulty} Difficulty
                   </span>
                 </div>
@@ -335,7 +340,7 @@ const CO2Dashboard = () => {
                     <span>Estimated CO2 Reduction:</span>
                     <span className="font-medium">{(parseFloat(selectedOptimizationModel.co2) * parseFloat(opt.reduction) / 100).toFixed(1)} kg</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => {
                       alert(`Applying ${opt.technique} to ${selectedOptimizationModel.name}...\nEstimated time: 15-30 minutes`);
                     }}
@@ -465,11 +470,10 @@ const CO2Dashboard = () => {
                   <td className="px-6 py-4 whitespace-nowrap">{(model.co2 * 2.1).toFixed(1)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{(model.co2 * 0.8).toFixed(1)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      model.co2 < 100 ? 'bg-green-100 text-green-800' :
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${model.co2 < 100 ? 'bg-green-100 text-green-800' :
                       model.co2 < 200 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
+                        'bg-red-100 text-red-800'
+                      }`}>
                       {model.co2 < 100 ? 'Excellent' : model.co2 < 200 ? 'Good' : 'Needs Optimization'}
                     </span>
                   </td>
@@ -517,11 +521,10 @@ const CO2Dashboard = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
