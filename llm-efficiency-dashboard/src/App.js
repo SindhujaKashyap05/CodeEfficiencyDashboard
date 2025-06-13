@@ -8,21 +8,22 @@ const CO2Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedOptimizationModelId, setExpandedOptimizationModelId] = useState(null);
   const [backendMetrics, setBackendMetrics] = useState(null);
-  
+
+  // Toast state for upload
+  const [uploading, setUploading] = useState(false);
+  const [uploadToast, setUploadToast] = useState('');
 
   useEffect(() => {
-  fetch('http://localhost:8080/api/vi/fetch')
-    .then(res => res.json())
-    .then(data => {
-      console.log('Fetched data:', data); // Add this line
-      setBackendMetrics(Array.isArray(data) ? data[0] : data);
-    })
-    .catch(err => {
-      console.error('Failed to fetch backend metrics:', err);
-    });
-}, []);
+    fetch('http://localhost:8080/api/vi/fetch')
+      .then(res => res.json())
+      .then(data => {
+        setBackendMetrics(Array.isArray(data) ? data[0] : data);
+      })
+      .catch(err => {
+        console.error('Failed to fetch backend metrics:', err);
+      });
+  }, []);
 
-  console.error("Sindhu", backendMetrics);
   // Generate all data from backendMetrics
   const emissionData = backendMetrics
     ? [
@@ -81,6 +82,8 @@ const CO2Dashboard = () => {
   };
 
   const handleUpload = async () => {
+    setUploading(true);
+    setUploadToast('Uploading...');
     const formData = new FormData();
     formData.append('file', uploadData.file);
 
@@ -97,12 +100,15 @@ const CO2Dashboard = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert('Model uploaded successfully');
+        setUploadToast('Model uploaded successfully');
       } else {
-        alert(`Upload failed: ${data.message || data.error}`);
+        setUploadToast(`Upload failed: ${data.message || data.error}`);
       }
     } catch (err) {
-      alert('Error uploading model: ' + err.message);
+      setUploadToast('Error uploading model: ' + err.message);
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadToast(''), 3000);
     }
   };
 
@@ -246,7 +252,7 @@ const CO2Dashboard = () => {
         <button
           onClick={handleUpload}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
-          disabled={!uploadData.file || !uploadData.modelName || !uploadData.version}
+          disabled={!uploadData.file || !uploadData.modelName || !uploadData.version || uploading}
         >
           Upload Model
         </button>
@@ -407,19 +413,6 @@ const CO2Dashboard = () => {
   const renderAnalytics = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-          <h3 className="text-lg font-semibold mb-4">Energy Consumption by Phase</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={emissionData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="training" stackId="a" fill="#8884d8" />
-              <Bar dataKey="inference" stackId="a" fill="#82ca9d" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div> */}
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <h3 className="text-lg font-semibold mb-4">Historical Comparison</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -481,6 +474,15 @@ const CO2Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast notification */}
+      {uploadToast && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50">
+          <div className={`px-6 py-3 rounded-lg shadow-lg text-white font-semibold transition-all
+            ${uploading ? 'bg-blue-600' : uploadToast.includes('successfully') ? 'bg-green-600' : 'bg-red-600'}`}>
+            {uploadToast}
+          </div>
+        </div>
+      )}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
