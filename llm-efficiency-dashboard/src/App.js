@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Upload, Activity, Zap, Cpu, TrendingDown, FileText, Settings, Search, Filter, Download } from 'lucide-react';
+import { Upload, Activity, Zap, Cpu, TrendingDown, FileText, Settings, Search, Filter, Download, Code } from 'lucide-react';
 import './App.css'; // Assuming you have a CSS file for styles
 import 'tailwindcss/tailwind.css'; // Import Tailwind CSS styles
 
@@ -8,6 +8,9 @@ const CO2Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedModel, setSelectedModel] = useState(null);
   const [selectedOptimizationModel, setSelectedOptimizationModel] = useState(null);
+  const [showCodePreview, setShowCodePreview] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+
   const [models, setModels] = useState([
     { id: 1, name: 'BERT-Base', type: 'NLP', co2: 45.2, status: 'analyzed', lastRun: '2024-12-01' },
     { id: 2, name: 'GPT-3.5', type: 'Language', co2: 234.7, status: 'analyzing', lastRun: '2024-12-02' },
@@ -54,6 +57,67 @@ const CO2Dashboard = () => {
     };
     return baseOptimizations[model.type] || baseOptimizations['NLP'];
   };
+
+  const codeTemplates = {
+    "Model Pruning": {
+      pytorch: `# Original Model (32-bit precision)
+                     import torch
+                     import torch.nn as nn
+
+                     class OriginalModel(nn.Module):
+                         def __init__(self):
+                             super().__init__()
+                             self.transformer = BertModel.from_pretrained('bert-base-uncased')
+                             self.classifier = nn.Linear(768, num_classes)
+
+                         def forward(self, x):
+                             return self.classifier(self.transformer(x).pooler_output)
+
+                     # Optimized Model (16-bit quantization)
+                     import torch.quantization as quant
+
+                     # Enable quantization
+                     model = OriginalModel()
+                     model.eval()
+
+                     # Apply dynamic quantization
+                     quantized_model = torch.quantization.quantize_dynamic(
+                         model,
+                         {nn.Linear, nn.LSTM, nn.GRU},
+                         dtype=torch.qint8
+                     )
+
+                     # For static quantization (better performance)
+                     model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+                     torch.quantization.prepare(model, inplace=True)
+                     # Calibrate with representative data
+                     torch.quantization.convert(model, inplace=True)`,
+      tensorflow: `# Original Model (32-bit precision)
+                     import tensorflow as tf
+
+                     def create_original_model():
+                         model = tf.keras.Sequential([
+                             tf.keras.layers.Dense(512, activation='relu'),
+                             tf.keras.layers.Dense(256, activation='relu'),
+                             tf.keras.layers.Dense(num_classes, activation='softmax')
+                         ])
+                         return model
+
+                     # Optimized Model (16-bit quantization)
+                     def create_quantized_model():
+                         # Post-training quantization
+                         converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+                         converter.optimizations = [tf.lite.Optimize.DEFAULT]
+                         converter.target_spec.supported_types = [tf.float16]
+
+                         # For INT8 quantization
+                         converter.representative_dataset = representative_data_gen
+                         converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+
+                         quantized_tflite_model = converter.convert()
+                         return quantized_tflite_model`
+    }
+  }
 
   const emissionData = [
     { name: 'Jan', training: 120, inference: 80, total: 200 },
@@ -186,32 +250,32 @@ const CO2Dashboard = () => {
   };
 
   const handleUpload = async () => {
-  const formData = new FormData();
-  formData.append('file', uploadData.file);
+    const formData = new FormData();
+    formData.append('file', uploadData.file);
 
-  // Build the URL with query params
-  const params = new URLSearchParams({
-    modelName: uploadData.modelName,
-    version: uploadData.version
-  });
-
-  try {
-    const response = await fetch(`http://localhost:8080/api/v1/models/upload?${params.toString()}`, {
-      method: 'POST',
-      body: formData
+    // Build the URL with query params
+    const params = new URLSearchParams({
+      modelName: uploadData.modelName,
+      version: uploadData.version
     });
-    const data = await response.json();
 
-    if (response.ok) {
-      alert('Model uploaded successfully');
-      // Optionally, refresh model list or update state
-    } else {
-      alert(`Upload failed: ${data.message || data.error}`);
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/models/upload?${params.toString()}`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('Model uploaded successfully');
+        // Optionally, refresh model list or update state
+      } else {
+        alert(`Upload failed: ${data.message || data.error}`);
+      }
+    } catch (err) {
+      alert('Error uploading model: ' + err.message);
     }
-  } catch (err) {
-    alert('Error uploading model: ' + err.message);
-  }
-};
+  };
 
   const renderModels = () => (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mt-6">
@@ -340,14 +404,46 @@ const CO2Dashboard = () => {
                     <span>Estimated CO2 Reduction:</span>
                     <span className="font-medium">{(parseFloat(selectedOptimizationModel.co2) * parseFloat(opt.reduction) / 100).toFixed(1)} kg</span>
                   </div>
-                  <button
-                    onClick={() => {
-                      alert(`Applying ${opt.technique} to ${selectedOptimizationModel.name}...\nEstimated time: 15-30 minutes`);
-                    }}
-                    className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Apply to {selectedOptimizationModel.name}
-                  </button>
+
+
+                  <div className="flex gap-4 items-center">
+                    <button
+                      className="bg-green-600 text-white px-5 py-2 rounded-lg shadow hover:bg-green-700 transition-colors duration-200 font-semibold"
+                      onClick={() => {
+                        alert(`Applying ${opt.technique} to ${selectedOptimizationModel.name}...\nEstimated time: 15-30 minutes`);
+                      }}
+                    >
+                      Apply to {selectedOptimizationModel.name}
+                    </button>
+                    <button
+                      className="bg-blue-600 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors duration-200 font-semibold"
+                      onClick={() => {
+                        setSelectedTemplate(codeTemplates["Model Pruning"].pytorch); // or .tensorflow as needed
+                        setShowCodePreview(true);
+                      }}
+                    >
+                      Show Code Preview
+                    </button>
+                  </div>
+
+                  {/* Modal for code preview */}
+                  {showCodePreview && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+                      <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full relative">
+                        <button
+                          className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+                          onClick={() => setShowCodePreview(false)}
+                        >
+                          &times;
+                        </button>
+                        <h4 className="text-lg font-semibold mb-4">View Code</h4>
+                        <pre className="bg-gray-100 p-4 rounded overflow-x-auto text-xs">
+                          {selectedTemplate}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             ))}
