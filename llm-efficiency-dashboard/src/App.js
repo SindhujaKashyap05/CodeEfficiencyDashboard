@@ -1,76 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Upload, Activity, Zap, Cpu, TrendingDown, FileText, Settings, Search, Filter, Download } from 'lucide-react';
+import { Activity, Zap, Cpu, TrendingDown, FileText, Settings, Download } from 'lucide-react';
 import './App.css';
 import 'tailwindcss/tailwind.css';
 
 const CO2Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedModel, setSelectedModel] = useState(null);
-  const [models, setModels] = useState([
-    { id: 1, name: 'BERT-Base', type: 'NLP', co2: 45.2, status: 'analyzed', lastRun: '2024-12-01' },
-    { id: 2, name: 'GPT-3.5', type: 'Language', co2: 234.7, status: 'analyzing', lastRun: '2024-12-02' },
-    { id: 3, name: 'ResNet-50', type: 'Vision', co2: 78.3, status: 'analyzed', lastRun: '2024-11-29' },
-    { id: 4, name: 'YOLO-v8', type: 'Detection', co2: 156.9, status: 'optimized', lastRun: '2024-12-01' }
-  ]);
-  // For toggling optimization details
   const [expandedOptimizationModelId, setExpandedOptimizationModelId] = useState(null);
+  const [backendMetrics, setBackendMetrics] = useState(null);
+  
 
-  // Model-specific optimizations based on model type
-  const getModelOptimizations = (model) => {
-    if (!model) return [];
-    const baseOptimizations = {
-      'NLP': [
-        { technique: 'Model Pruning', reduction: '25', impact: 'High', difficulty: 'Medium', description: 'Remove redundant attention heads and layers' },
-        { technique: 'Quantization', reduction: '35', impact: 'High', difficulty: 'Low', description: 'Convert to INT8 precision for faster inference' },
-        { technique: 'Knowledge Distillation', reduction: '45', impact: 'Medium', difficulty: 'High', description: 'Create smaller student model from BERT' },
-        { technique: 'Layer Freezing', reduction: '20', impact: 'Low', difficulty: 'Low', description: 'Freeze early transformer layers' }
-      ],
-      'Language': [
-        { technique: 'Model Pruning', reduction: '30', impact: 'High', difficulty: 'High', description: 'Structured pruning of transformer blocks' },
-        { technique: 'Quantization', reduction: '40', impact: 'High', difficulty: 'Medium', description: 'Mixed precision optimization' },
-        { technique: 'Knowledge Distillation', reduction: '50', impact: 'Medium', difficulty: 'High', description: 'Distill to smaller architecture' },
-        { technique: 'Gradient Checkpointing', reduction: '15', impact: 'Low', difficulty: 'Low', description: 'Reduce memory usage during training' }
-      ],
-      'Vision': [
-        { technique: 'Channel Pruning', reduction: '35', impact: 'High', difficulty: 'Medium', description: 'Remove less important CNN channels' },
-        { technique: 'Quantization', reduction: '40', impact: 'High', difficulty: 'Low', description: 'Post-training quantization' },
-        { technique: 'MobileNet Architecture', reduction: '60', impact: 'Medium', difficulty: 'High', description: 'Replace with efficient architecture' },
-        { technique: 'Input Resolution Reduction', reduction: '25', impact: 'Low', difficulty: 'Low', description: 'Optimize input image size' }
-      ],
-      'Detection': [
-        { technique: 'Model Pruning', reduction: '28', impact: 'High', difficulty: 'Medium', description: 'Prune detection head layers' },
-        { technique: 'Quantization', reduction: '32', impact: 'High', difficulty: 'Low', description: 'Quantize backbone and neck' },
-        { technique: 'NAS Optimization', reduction: '45', impact: 'High', difficulty: 'High', description: 'Neural architecture search' },
-        { technique: 'Anchor Optimization', reduction: '18', impact: 'Low', difficulty: 'Low', description: 'Reduce number of anchor boxes' }
+  useEffect(() => {
+  fetch('http://localhost:8080/api/vi/fetch')
+    .then(res => res.json())
+    .then(data => {
+      console.log('Fetched data:', data); // Add this line
+      setBackendMetrics(Array.isArray(data) ? data[0] : data);
+    })
+    .catch(err => {
+      console.error('Failed to fetch backend metrics:', err);
+    });
+}, []);
+
+  console.error("Sindhu", backendMetrics);
+  // Generate all data from backendMetrics
+  const emissionData = backendMetrics
+    ? [
+        { name: 'Jan', training: backendMetrics.staticEmission, inference: backendMetrics.dynamicEmission, total: backendMetrics.staticEmission + backendMetrics.dynamicEmission },
+        { name: 'Feb', training: backendMetrics.staticEmission, inference: backendMetrics.dynamicEmission, total: backendMetrics.staticEmission + backendMetrics.dynamicEmission },
+        { name: 'Mar', training: backendMetrics.staticEmission, inference: backendMetrics.dynamicEmission, total: backendMetrics.staticEmission + backendMetrics.dynamicEmission },
+        { name: 'Apr', training: backendMetrics.staticEmission, inference: backendMetrics.dynamicEmission, total: backendMetrics.staticEmission + backendMetrics.dynamicEmission },
+        { name: 'May', training: backendMetrics.staticEmission, inference: backendMetrics.dynamicEmission, total: backendMetrics.staticEmission + backendMetrics.dynamicEmission },
+        { name: 'Jun', training: backendMetrics.staticEmission, inference: backendMetrics.dynamicEmission, total: backendMetrics.staticEmission + backendMetrics.dynamicEmission }
       ]
-    };
-    return baseOptimizations[model.type] || baseOptimizations['NLP'];
-  };
+    : [];
 
-  const emissionData = [
-    { name: 'Jan', training: 120, inference: 80, total: 200 },
-    { name: 'Feb', training: 140, inference: 75, total: 215 },
-    { name: 'Mar', training: 110, inference: 85, total: 195 },
-    { name: 'Apr', training: 95, inference: 70, total: 165 },
-    { name: 'May', training: 130, inference: 90, total: 220 },
-    { name: 'Jun', training: 85, inference: 65, total: 150 }
-  ];
+  const pieData = backendMetrics
+    ? [
+        { name: 'Training', value: backendMetrics.staticEmission, color: '#8884d8' },
+        { name: 'Inference', value: backendMetrics.dynamicEmission, color: '#82ca9d' },
+        { name: 'Infrastructure', value: 0.01, color: '#ffc658' }
+      ]
+    : [];
 
-  const modelComparison = [
-    { name: 'Original', co2: 234.7, accuracy: 92.1, energy: 450 },
-    { name: 'Pruned', co2: 187.3, accuracy: 91.8, energy: 360 },
-    { name: 'Quantized', co2: 156.2, accuracy: 91.5, energy: 298 },
-    { name: 'Distilled', co2: 134.8, accuracy: 90.9, energy: 267 }
-  ];
+  const modelComparison = backendMetrics
+    ? [
+        { name: 'Original', co2: backendMetrics.staticEmission + backendMetrics.dynamicEmission, accuracy: 92.1, energy: backendMetrics.dynamicPower * 1000 },
+        { name: 'Pruned', co2: (backendMetrics.staticEmission + backendMetrics.dynamicEmission) * 0.8, accuracy: 91.8, energy: backendMetrics.dynamicPower * 800 },
+        { name: 'Quantized', co2: (backendMetrics.staticEmission + backendMetrics.dynamicEmission) * 0.7, accuracy: 91.5, energy: backendMetrics.dynamicPower * 700 },
+        { name: 'Distilled', co2: (backendMetrics.staticEmission + backendMetrics.dynamicEmission) * 0.6, accuracy: 90.9, energy: backendMetrics.dynamicPower * 600 }
+      ]
+    : [];
 
-  const pieData = [
-    { name: 'Training', value: 65, color: '#8884d8' },
-    { name: 'Inference', value: 25, color: '#82ca9d' },
-    { name: 'Infrastructure', value: 10, color: '#ffc658' }
-  ];
+  const models = backendMetrics
+    ? [
+        {
+          id: 1,
+          name: backendMetrics.jobName,
+          type: 'NLP',
+          co2: (backendMetrics.staticEmission + backendMetrics.dynamicEmission),
+          status: backendMetrics.jobStatus,
+          lastRun: backendMetrics.creationTime
+        }
+      ]
+    : [];
 
-  // Upload state and handlers should be at the component level, not inside renderModels
   const [uploadData, setUploadData] = useState({
     modelName: '',
     version: '',
@@ -90,7 +84,6 @@ const CO2Dashboard = () => {
     const formData = new FormData();
     formData.append('file', uploadData.file);
 
-    // Build the URL with query params
     const params = new URLSearchParams({
       modelName: uploadData.modelName,
       version: uploadData.version
@@ -105,7 +98,6 @@ const CO2Dashboard = () => {
 
       if (response.ok) {
         alert('Model uploaded successfully');
-        // Optionally, refresh model list or update state
       } else {
         alert(`Upload failed: ${data.message || data.error}`);
       }
@@ -114,15 +106,27 @@ const CO2Dashboard = () => {
     }
   };
 
+  const getModelOptimizations = (model) => {
+    if (!model) return [];
+    return [
+      { technique: 'Model Pruning', reduction: '25', impact: 'High', difficulty: 'Medium', description: 'Remove redundant layers' },
+      { technique: 'Quantization', reduction: '35', impact: 'High', difficulty: 'Low', description: 'Convert to INT8 precision' },
+      { technique: 'Knowledge Distillation', reduction: '45', impact: 'Medium', difficulty: 'High', description: 'Create smaller student model' }
+    ];
+  };
+
   const renderOverview = () => (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Stats Cards */}
       <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total CO2 Saved</p>
-              <p className="text-2xl font-bold text-green-600">142.3 kg</p>
+              <p className="text-2xl font-bold text-green-600">
+                {backendMetrics
+                  ? `${(backendMetrics.staticEmission + backendMetrics.dynamicEmission).toFixed(4)} kg`
+                  : '...'}
+              </p>
             </div>
             <TrendingDown className="w-8 h-8 text-green-600" />
           </div>
@@ -130,8 +134,12 @@ const CO2Dashboard = () => {
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Models Analyzed</p>
-              <p className="text-2xl font-bold text-blue-600">24</p>
+              <p className="text-sm text-gray-600">Dynamic Power</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {backendMetrics
+                  ? `${backendMetrics.dynamicPower} kWh`
+                  : '...'}
+              </p>
             </div>
             <Activity className="w-8 h-8 text-blue-600" />
           </div>
@@ -139,8 +147,12 @@ const CO2Dashboard = () => {
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Avg Reduction</p>
-              <p className="text-2xl font-bold text-purple-600">28%</p>
+              <p className="text-sm text-gray-600">Job Status</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {backendMetrics
+                  ? backendMetrics.jobStatus
+                  : '...'}
+              </p>
             </div>
             <Zap className="w-8 h-8 text-purple-600" />
           </div>
@@ -148,15 +160,17 @@ const CO2Dashboard = () => {
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Energy Saved</p>
-              <p className="text-2xl font-bold text-orange-600">1.2 MWh</p>
+              <p className="text-sm text-gray-600">Created At</p>
+              <p className="text-2xl font-bold text-orange-600">
+                {backendMetrics
+                  ? backendMetrics.creationTime
+                  : '...'}
+              </p>
             </div>
             <Cpu className="w-8 h-8 text-orange-600" />
           </div>
         </div>
       </div>
-
-      {/* CO2 Trends Chart */}
       <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg border border-gray-100">
         <h3 className="text-lg font-semibold mb-4">CO2 Emission Trends</h3>
         <ResponsiveContainer width="100%" height={300}>
@@ -172,8 +186,6 @@ const CO2Dashboard = () => {
           </LineChart>
         </ResponsiveContainer>
       </div>
-
-      {/* Emission Breakdown */}
       <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
         <h3 className="text-lg font-semibold mb-4">Emission Sources</h3>
         <ResponsiveContainer width="100%" height={300}>
@@ -244,7 +256,6 @@ const CO2Dashboard = () => {
 
   const renderOptimizations = () => (
     <div className="space-y-6">
-      {/* Model Selection */}
       <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
         <h3 className="text-lg font-semibold mb-4">Select Model for Optimization</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -276,7 +287,6 @@ const CO2Dashboard = () => {
                 </div>
                 {isExpanded && (
                   <div className="col-span-full mt-4">
-                    {/* Selected Model Info */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mb-4">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-4">
@@ -294,7 +304,6 @@ const CO2Dashboard = () => {
                         </div>
                       </div>
                     </div>
-                    {/* Model-Specific Optimization Recommendations */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mb-4">
                       <h3 className="text-lg font-semibold mb-4">Optimization Recommendations for {model.name}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -337,7 +346,6 @@ const CO2Dashboard = () => {
                         ))}
                       </div>
                     </div>
-                    {/* Model-Specific Before/After Comparison */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                       <h3 className="text-lg font-semibold mb-4">{model.name} - Optimization Results</h3>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -398,9 +406,8 @@ const CO2Dashboard = () => {
 
   const renderAnalytics = () => (
     <div className="space-y-6">
-      {/* Detailed Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+        {/* <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <h3 className="text-lg font-semibold mb-4">Energy Consumption by Phase</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={emissionData}>
@@ -412,8 +419,7 @@ const CO2Dashboard = () => {
               <Bar dataKey="inference" stackId="a" fill="#82ca9d" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-
+        </div> */}
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <h3 className="text-lg font-semibold mb-4">Historical Comparison</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -428,8 +434,6 @@ const CO2Dashboard = () => {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Detailed Metrics Table */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100">
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -477,13 +481,12 @@ const CO2Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-600 rounded-lg"></div>
-              <h1 className="text-xl font-bold text-gray-900">EcoAI Dashboard</h1>
+              <h1 className="text-xl font-bold text-gray-900">Carbon Scope Dashboard</h1>
             </div>
             <div className="flex items-center gap-4">
               <button className="p-2 text-gray-400 hover:text-gray-600">
@@ -494,8 +497,6 @@ const CO2Dashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* Navigation */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
@@ -523,8 +524,6 @@ const CO2Dashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'models' && renderModels()}
